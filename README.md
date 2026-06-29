@@ -1,4 +1,4 @@
-# OKHST: A Tone Space for Stable Perceptual Lightness
+# OKHST: A Contrast-Shaped Tone Space for OKHSL
 
 > OKHST is an OKHSL-derived color space that replaces authored lightness with a
 > tone axis. The goal is to keep the same perceptual lightness for the same tone
