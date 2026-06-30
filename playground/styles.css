@@ -296,6 +296,9 @@ input[type="range"]::-webkit-slider-thumb {
   font-variant-numeric: tabular-nums;
   transition: filter 0.12s;
 }
+.swatch:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
 @supports (color: contrast-color(red)) {
   .swatch { color: contrast-color(var(--swatch-bg)); }
 }
