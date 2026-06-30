@@ -12,11 +12,19 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="banner" id="banner" hidden>
-      This playground uses CSS <code>@function</code> — open it in Chrome or Edge
-      139+. Other browsers will not render the colors.
+    <div class="no-support" role="alert">
+      <h1>OKHST <span>CSS playground</span></h1>
+      <p>
+        This playground relies on CSS <code>@function</code> (the
+        <code>function()</code> value type). Your browser does not support it yet.
+      </p>
+      <p class="no-support__hint">
+        Open this page in <strong>Chrome</strong> or <strong>Edge 139+</strong> to
+        use the interactive palette.
+      </p>
     </div>
 
+    <div class="playground">
     <header class="topbar">
       <h1>OKHST <span>CSS playground</span></h1>
       <div class="toggles">
@@ -112,6 +120,7 @@
     </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>

@@ -29,7 +29,6 @@ const $ = (id) => document.getElementById(id);
 const ramp = $('ramp');
 const chip = $('chip');
 const toast = $('toast');
-const banner = $('banner');
 const winEl = $('win');
 const winLo = $('win-lo');
 const winHi = $('win-hi');
@@ -196,15 +195,6 @@ function onWinHi() {
   applyWindow();
 }
 
-/* ---- feature detection: @function support --------------------------------- */
-function detectSupport() {
-  const first = ramp.querySelector('.swatch');
-  if (!first) return;
-  const bg = getComputedStyle(first).backgroundColor;
-  const supported = Boolean(bg) && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent';
-  banner.hidden = supported;
-}
-
 /* ---- init ----------------------------------------------------------------- */
 function init() {
   buildPool();
@@ -229,9 +219,6 @@ function init() {
   applyWindow();
   setSpace(state.space);
   setScheme(state.scheme);
-
-  // wait a frame so the @functions resolve before probing
-  requestAnimationFrame(detectSupport);
 }
 
 init();
