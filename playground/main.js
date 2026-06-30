@@ -99,10 +99,17 @@ function onRampClick(event) {
   }
 }
 
-function selectSwatch(sw, i, value) {
+function clearSelection() {
   for (const b of ramp.querySelectorAll('.swatch[aria-pressed="true"]')) {
     b.setAttribute('aria-pressed', 'false');
   }
+  chip.style.backgroundColor = '';
+  inspTone.textContent = '—';
+  inspValue.textContent = 'Click a swatch to copy its computed color.';
+}
+
+function selectSwatch(sw, i, value) {
+  clearSelection();
   sw.setAttribute('aria-pressed', 'true');
   chip.style.backgroundColor = value;
   inspTone.textContent = String(toneFor(i, state.steps));
@@ -115,18 +122,21 @@ function applyHue() {
   state.hue = Number(hueEl.value);
   setVar('--seed-h', String(state.hue));
   hueVal.textContent = `${state.hue}°`;
+  clearSelection();
 }
 
 function applySat() {
   state.sat = Number(satEl.value);
   setVar('--seed-s', (state.sat / 100).toString());
   satVal.textContent = `${state.sat}%`;
+  clearSelection();
 }
 
 function applySteps() {
   state.steps = Number(stepsEl.value);
   setVar('--count', String(state.steps));
   stepsVal.textContent = String(state.steps);
+  clearSelection();
 }
 
 function applyWindow() {
@@ -138,6 +148,7 @@ function applyWindow() {
   winLo.value = String(w.lo);
   winHi.value = String(w.hi);
   winVal.textContent = `${w.lo} – ${w.hi}`;
+  clearSelection();
 }
 
 /* ---- scheme + space toggles ----------------------------------------------- */
@@ -157,6 +168,7 @@ function setSpace(space) {
     b.setAttribute('aria-pressed', b.dataset.space === space ? 'true' : 'false');
   }
   inspSpace.textContent = space.toUpperCase();
+  clearSelection();
 }
 
 /* ---- dual-thumb lo/hi (single track, per-scheme values) ------------------- */
