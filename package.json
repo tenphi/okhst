@@ -1,0 +1,15 @@
+{
+  "name": "okhst-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite playground",
+    "build": "vite build playground",
+    "build:playground": "vite build playground",
+    "preview": "vite preview playground"
+  },
+  "devDependencies": {
+    "vite": "^8.1.0"
+  }
+}

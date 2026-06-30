@@ -1,0 +1,202 @@
+/* ============================================================================
+   OKHST in pure CSS — single --okhst(hue, saturation, tone) -> oklch() color
+
+   OKHST = OKHSL with the lightness slider replaced by a contrast-uniform TONE.
+   Output is oklch() (= Oklab-LCh): no okhsl(), no oklab->sRGB port, no toe.
+   Hue + the full get_Cs chroma model are a faithful port of Bjorn Ottosson's
+   OKHSL functions, so saturation matches OKHSL and any hue works.
+
+     hue        degrees (any value, fractional ok)
+     saturation 0..1   (OKHSL gamut-normalized saturation)
+     tone       0..100 (contrast-uniform; +N tone = +N everywhere)
+
+   Approximation: C_max uses the cusp triangle (swap --cmax in --okhst-c for one
+   Halley step of find_gamut_intersection for a bit-exact match).
+   @function is Chromium-only today (Chrome/Edge 139+). For Firefox/Safari use
+   the flattened @property version. All underlying math is Baseline.
+   ============================================================================ */
+
+@property --okhst-eps { syntax: "<number>"; inherits: true; initial-value: 0.05; }
+@property --tone-lo   { syntax: "<number>"; inherits: true; initial-value: 0;   }
+@property --tone-hi   { syntax: "<number>"; inherits: true; initial-value: 100; }
+
+/* ---- Extensions: dark inversion + OKHST/OKHSL toggle + ramp props ---------- */
+@property --tone-flip   { syntax: "<number>";  inherits: true;  initial-value: 0; }
+@property --okhst-space { syntax: "<number>";  inherits: true;  initial-value: 0; }
+@property --count       { syntax: "<integer>"; inherits: true;  initial-value: 11; }
+@property --i           { syntax: "<integer>"; inherits: false; initial-value: 0; }
+@property --t           { syntax: "<number>";  inherits: false; initial-value: 0; }
+@property --t-label     { syntax: "<integer>"; inherits: false; initial-value: 0; }
+
+/* ---- Hoisted chrome colors ------------------------------------------------
+   Registered as <color> so each --ghst() resolves ONCE on :root and children
+   inherit the already-computed color (instead of re-running --ghst per
+   element). They recompute automatically when --seed-h / --seed-s / the
+   scheme window / --okhst-space change.                              */
+@property --c-surface { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
+@property --c-elev    { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
+@property --c-border  { syntax: "<color>"; inherits: true; initial-value: #808080; }
+@property --c-track   { syntax: "<color>"; inherits: true; initial-value: #808080; }
+@property --c-text    { syntax: "<color>"; inherits: true; initial-value: #000000; }
+@property --c-muted   { syntax: "<color>"; inherits: true; initial-value: #808080; }
+@property --c-thumb   { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
+@property --c-accent  { syntax: "<color>"; inherits: true; initial-value: #808080; }
+/* per-swatch bg, resolved once so contrast-color() can reuse it */
+@property --swatch-bg { syntax: "<color>"; inherits: false; initial-value: #000000; }
+
+/* ====== PUBLIC API ========================================================= */
+
+/* --ghst: like --okhst, but first maps tone 0..100 into the current
+   [--tone-lo, --tone-hi] window (defaults 0..100) and inverts the tone for
+   dark scheme when --tone-flip is 1 (OKHST dark = 100 - tone).
+   A mode/scope sets --tone-lo / --tone-hi / --tone-flip and the same tone
+   values re-window + re-flip automatically. */
+@function --ghst(--h <number>, --s <number>, --t <number>) returns <color> {
+  --t-eff: calc(var(--tone-flip) * (100 - var(--t))
+         + (1 - var(--tone-flip)) * var(--t));
+  result: --okhst(var(--h), var(--s),
+            calc(var(--tone-lo) + (var(--tone-hi) - var(--tone-lo)) * var(--t-eff) / 100));
+}
+
+/* --okhst: tone-space primitive (tone used directly, no window).
+   --okhst-space selects the lightness mapping:
+     0 = OKHST tone transfer (--okhst-l, contrast-uniform)
+     1 = OKHSL lightness     (--okhsl-toe-inv, perceptual)            */
+@function --okhst(--h <number>, --s <number>, --t <number>) returns <color> {
+  --a: cos(var(--h) * 1deg);
+  --b: sin(var(--h) * 1deg);
+  --scusp: --okhst-smax(var(--a), var(--b));
+  --lc: --okhst-lcusp(var(--a), var(--b), var(--scusp));
+  --cc: calc(var(--lc) * var(--scusp));
+  --sm: --okhst-smid(var(--a), var(--b));
+  --tm: --okhst-tmid(var(--a), var(--b));
+  --L-tone: --okhst-l(var(--t));                          /* OKHST: tone transfer */
+  --L-lin:  --okhsl-toe-inv(calc(var(--t) / 100));        /* OKHSL: toe_inv(l)    */
+  --L: calc((1 - var(--okhst-space)) * var(--L-tone) + var(--okhst-space) * var(--L-lin));
+  --C: --okhst-c(var(--s), var(--L), var(--lc), var(--cc), var(--sm), var(--tm));
+  result: oklch(var(--L) var(--C) var(--h));
+}
+
+/* ====== INTERNALS ========================================================= */
+
+/* OKHSL lightness-estimate inverse (Ottosson): l (0..1) -> Oklab L.
+   Pure arithmetic, no sqrt. Used for the OKHSL ramp (--okhst-space = 1). */
+@function --okhsl-toe-inv(--x <number>) returns <number> {
+  --k1: 0.206;
+  --k2: 0.03;
+  --k3: 1.1718446601941748;   /* (1 + k1) / (1 + k2) */
+  result: calc((var(--x) * var(--x) + var(--k1) * var(--x))
+              / (var(--k3) * (var(--x) + var(--k2))));
+}
+
+/* tone (0..100) -> Oklab L (== oklch L). No toe. */
+@function --okhst-l(--t <number>) returns <number> {
+  --y: calc(var(--okhst-eps) *
+            (pow((1 + var(--okhst-eps)) / var(--okhst-eps), var(--t) / 100) - 1));
+  result: calc(pow(var(--y), 1/3));
+}
+
+/* max saturation S=C/L of the gamut cusp (compute_max_saturation):
+   3-way primary branch as 0/1 gates + one Halley refinement step. */
+@function --okhst-smax(--a <number>, --b <number>) returns <number> {
+  --red: clamp(0, sign(-1.88170328*var(--a) - 0.80936493*var(--b) - 1), 1);
+  --grw: clamp(0, sign( 1.81444104*var(--a) - 1.19445276*var(--b) - 1), 1);
+  --grn: calc((1 - var(--red)) * var(--grw));
+  --blu: calc((1 - var(--red)) * (1 - var(--grw)));
+
+  --k0: calc(var(--red)*1.19086277  + var(--grn)*0.73956515  + var(--blu)*1.35733652);
+  --k1: calc(var(--red)*1.76576728  + var(--grn)*-0.45954404 + var(--blu)*-0.00915799);
+  --k2: calc(var(--red)*0.59662641  + var(--grn)*0.08285427  + var(--blu)*-1.15130210);
+  --k3: calc(var(--red)*0.75515197  + var(--grn)*0.12541070  + var(--blu)*-0.50559606);
+  --k4: calc(var(--red)*0.56771245  + var(--grn)*0.14503204  + var(--blu)*0.00692167);
+  --wl: calc(var(--red)*4.0767416621  + var(--grn)*-1.2684380046 + var(--blu)*-0.0041960863);
+  --wm: calc(var(--red)*-3.3077115913 + var(--grn)*2.6097574011  + var(--blu)*-0.7034186147);
+  --ws: calc(var(--red)*0.2309699292  + var(--grn)*-0.3413193965 + var(--blu)*1.7076147010);
+
+  --s0: calc(var(--k0) + var(--k1)*var(--a) + var(--k2)*var(--b)
+           + var(--k3)*var(--a)*var(--a) + var(--k4)*var(--a)*var(--b));
+
+  --kl: calc( 0.3963377774*var(--a) + 0.2158037573*var(--b));
+  --km: calc(-0.1055613458*var(--a) - 0.0638541728*var(--b));
+  --ks: calc(-0.0894841775*var(--a) - 1.2914855480*var(--b));
+
+  --ll: calc(1 + var(--s0)*var(--kl));
+  --mm: calc(1 + var(--s0)*var(--km));
+  --ss: calc(1 + var(--s0)*var(--ks));
+
+  --f:  calc(var(--wl)*var(--ll)*var(--ll)*var(--ll) + var(--wm)*var(--mm)*var(--mm)*var(--mm) + var(--ws)*var(--ss)*var(--ss)*var(--ss));
+  --f1: calc(var(--wl)*3*var(--kl)*var(--ll)*var(--ll) + var(--wm)*3*var(--km)*var(--mm)*var(--mm) + var(--ws)*3*var(--ks)*var(--ss)*var(--ss));
+  --f2: calc(var(--wl)*6*var(--kl)*var(--kl)*var(--ll) + var(--wm)*6*var(--km)*var(--km)*var(--mm) + var(--ws)*6*var(--ks)*var(--ks)*var(--ss));
+
+  result: calc(var(--s0) - var(--f)*var(--f1) / (var(--f1)*var(--f1) - 0.5*var(--f)*var(--f2)));
+}
+
+/* L_cusp from the refined S_cusp (find_cusp tail). */
+@function --okhst-lcusp(--a <number>, --b <number>, --scusp <number>) returns <number> {
+  --kl: calc( 0.3963377774*var(--a) + 0.2158037573*var(--b));
+  --km: calc(-0.1055613458*var(--a) - 0.0638541728*var(--b));
+  --ks: calc(-0.0894841775*var(--a) - 1.2914855480*var(--b));
+
+  --ll: calc(1 + var(--scusp)*var(--kl));
+  --mm: calc(1 + var(--scusp)*var(--km));
+  --ss: calc(1 + var(--scusp)*var(--ks));
+
+  --r: calc( 4.0767416621*var(--ll)*var(--ll)*var(--ll) - 3.3077115913*var(--mm)*var(--mm)*var(--mm) + 0.2309699292*var(--ss)*var(--ss)*var(--ss));
+  --g: calc(-1.2684380046*var(--ll)*var(--ll)*var(--ll) + 2.6097574011*var(--mm)*var(--mm)*var(--mm) - 0.3413193965*var(--ss)*var(--ss)*var(--ss));
+  --bl:calc(-0.0041960863*var(--ll)*var(--ll)*var(--ll) - 0.7034186147*var(--mm)*var(--mm)*var(--mm) + 1.7076147010*var(--ss)*var(--ss)*var(--ss));
+
+  result: calc(pow(1 / max(var(--r), var(--g), var(--bl)), 1/3));
+}
+
+/* S_mid / T_mid (get_ST_mid polynomials). */
+@function --okhst-smid(--a <number>, --b <number>) returns <number> {
+  result: calc(0.11516993 + 1 / (
+      7.44778970 + 4.15901240*var(--b)
+    + var(--a)*(-2.19557347 + 1.75198401*var(--b)
+    + var(--a)*(-2.13704948 - 10.02301043*var(--b)
+    + var(--a)*(-4.24894561 + 5.38770819*var(--b) + 4.69891013*var(--a))))));
+}
+@function --okhst-tmid(--a <number>, --b <number>) returns <number> {
+  result: calc(0.11239642 + 1 / (
+      1.61320320 - 0.68124379*var(--b)
+    + var(--a)*(0.40370612 + 0.90148123*var(--b)
+    + var(--a)*(-0.27087943 + 0.61223990*var(--b)
+    + var(--a)*(0.00299215 - 0.45399568*var(--b) - 0.14661872*var(--a))))));
+}
+
+/* OKHSL chroma at Oklab lightness --l for saturation --s. */
+@function --okhst-c(--s <number>, --l <number>,
+                    --lc <number>, --cc <number>,
+                    --sm <number>, --tm <number>) returns <number> {
+  --smax: calc(var(--cc) / var(--lc));
+  --tmax: calc(var(--cc) / (1 - var(--lc)));
+
+  /* C_max via cusp triangle (approx of find_gamut_intersection) */
+  --below: clamp(0, sign(var(--lc) - var(--l)), 1);
+  --cmax: calc(var(--below)       * var(--cc) * var(--l)       / var(--lc)
+             + (1 - var(--below)) * var(--cc) * (1 - var(--l)) / (1 - var(--lc)));
+
+  --k: calc(var(--cmax) / min(var(--l) * var(--smax), (1 - var(--l)) * var(--tmax)));
+
+  --ca:   calc(var(--l) * var(--sm));
+  --cb:   calc((1 - var(--l)) * var(--tm));
+  --cmid: calc(0.9 * var(--k) *
+               pow(1 / (1/pow(var(--ca),4) + 1/pow(var(--cb),4)), 0.25));
+
+  --ca0: calc(var(--l) * 0.4);
+  --cb0: calc((1 - var(--l)) * 0.8);
+  --c0:  calc(sqrt(1 / (1/pow(var(--ca0),2) + 1/pow(var(--cb0),2))));
+
+  --tl:   calc(1.25 * var(--s));
+  --k1l:  calc(0.8 * var(--c0));
+  --k2l:  calc(1 - var(--k1l) / var(--cmid));
+  --clow: calc(var(--tl) * var(--k1l) / (1 - var(--k2l) * var(--tl)));
+
+  --th:    calc((var(--s) - 0.8) / 0.2);
+  --k1h:   calc(0.2 * pow(var(--cmid),2) * pow(1.25,2) / var(--c0));
+  --k2h:   calc(1 - var(--k1h) / (var(--cmax) - var(--cmid)));
+  --chigh: calc(var(--cmid) + var(--th) * var(--k1h) / (1 - var(--k2h) * var(--th)));
+
+  --hi: clamp(0, sign(var(--s) - 0.8), 1);
+  result: calc((1 - var(--hi)) * var(--clow) + var(--hi) * var(--chigh));
+}
