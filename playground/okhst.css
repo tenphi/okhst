@@ -28,22 +28,7 @@
 @property --t           { syntax: "<number>";  inherits: false; initial-value: 0; }
 @property --t-label     { syntax: "<integer>"; inherits: false; initial-value: 0; }
 
-/* ---- Hoisted chrome colors ------------------------------------------------
-   Registered as <color> so each --ghst() resolves ONCE on :root and children
-   inherit the already-computed color (instead of re-running --ghst per
-   element). They recompute automatically when --seed-h / --seed-s / the
-   scheme window / --okhst-space change.                              */
-@property --c-surface { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
-@property --c-elev    { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
-@property --c-border  { syntax: "<color>"; inherits: true; initial-value: #808080; }
-@property --c-track   { syntax: "<color>"; inherits: true; initial-value: #808080; }
-@property --c-text    { syntax: "<color>"; inherits: true; initial-value: #000000; }
-@property --c-muted   { syntax: "<color>"; inherits: true; initial-value: #808080; }
-@property --c-thumb   { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
-@property --c-accent  { syntax: "<color>"; inherits: true; initial-value: #808080; }
-/* per-swatch bg, resolved once so contrast-color() can reuse it */
-@property --swatch-bg { syntax: "<color>"; inherits: false; initial-value: #000000; }
-
+/* ---- Chrome color tokens (unregistered — recompute with tone window) ----- */
 /* ====== PUBLIC API ========================================================= */
 
 /* --ghst: like --okhst, but first maps tone 0..100 into the current

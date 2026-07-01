@@ -10,6 +10,10 @@
     "preview": "vite preview playground"
   },
   "devDependencies": {
+    "@tabler/icons-react": "^3.44.0",
+    "@vitejs/plugin-react": "^6.0.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "vite": "^8.1.0"
   }
 }

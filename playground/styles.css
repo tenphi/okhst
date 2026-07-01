@@ -4,10 +4,9 @@
    no color math in JS. The ramp swatches derive tone, label, and visibility
    from --i / --count in pure CSS (see playground/okhst.css for the functions).
 
-   Shared chrome colors are hoisted: --c-* are registered <color> custom
-   properties set once on :root, so --ghst runs once per color and children
-   inherit the resolved color instead of re-running --ghst. The chrome tints
-   with --seed-h (low saturation); the accent uses the full --seed-s.
+   Shared chrome colors use --c-* tokens on :root (plain custom properties, not
+   registered <color>) so --ghst re-resolves when --tone-lo / --tone-hi change.
+   The chrome tints with --seed-h (low saturation); the accent uses --seed-s.
    ============================================================================ */
 
 /* ---- @function feature gate ---------------------------------------------- */
@@ -69,7 +68,7 @@
   --tone-hi: 100;
   --tone-flip: 0;
 
-  /* hoisted chrome colors (resolve once on :root, inherited as <color>) */
+  /* chrome color tokens (--ghst respects the live tone window) */
   --c-surface: --ghst(var(--seed-h), 0.04, 100);
   --c-elev:    --ghst(var(--seed-h), 0.05, 96);
   --c-border:  --ghst(var(--seed-h), 0.04, 86);
@@ -148,8 +147,14 @@ h1 span {
   gap: var(--gap);
   flex-wrap: wrap;
 }
-.toggles { display: flex; gap: 10px; flex-wrap: wrap; }
-
+.toggles {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+#toggles-root {
+  display: contents;
+}
 .seg {
   display: inline-flex;
   padding: 3px;
@@ -170,11 +175,23 @@ h1 span {
   cursor: pointer;
   transition: color 0.12s, background-color 0.12s;
 }
+#seg-space button {
+  padding-inline: 10px;
+}
+#seg-scheme button,
+#seg-contrast button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 0;
+  flex-shrink: 0;
+}
 .seg button[aria-pressed="true"] {
-  /* selected chip stays a stable accent in both schemes (no flip, full range) */
+  /* selected chip keeps a stable accent hue; tone still maps through the window */
   --tone-flip: 0;
-  --tone-lo: 0;
-  --tone-hi: 100;
   background-color: --ghst(var(--seed-h), var(--seed-s), 58);
   color: --ghst(var(--seed-h), calc(var(--seed-s) * 0.4), 100);
   font-weight: 600;
@@ -229,8 +246,8 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 6px;
-  border: 1px solid var(--c-border);
-  background-color: var(--c-track);
+  border: 1px solid --ghst(var(--seed-h), 0.04, 86);
+  background-color: --ghst(var(--seed-h), 0.04, 88);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -239,17 +256,17 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: var(--c-thumb);
-  border: 2px solid var(--c-accent);
+  background-color: --ghst(var(--seed-h), 0.02, 100);
+  border: 2px solid --ghst(var(--seed-h), var(--seed-s), 58);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
-/* hue track: a pure OKHST hue sweep (no window) */
+/* hue track: OKHST hue sweep through the current tone window */
 .slider-hue::-webkit-slider-runnable-track {
   background: linear-gradient(
     90deg,
-    --okhst(0, 1, 58), --okhst(60, 1, 58), --okhst(120, 1, 58),
-    --okhst(180, 1, 58), --okhst(240, 1, 58), --okhst(300, 1, 58),
-    --okhst(360, 1, 58)
+    --ghst(0, 1, 58), --ghst(60, 1, 58), --ghst(120, 1, 58),
+    --ghst(180, 1, 58), --ghst(240, 1, 58), --ghst(300, 1, 58),
+    --ghst(360, 1, 58)
   );
   border-color: transparent;
 }
@@ -257,8 +274,8 @@ input[type="range"]::-webkit-slider-thumb {
 .slider-sat::-webkit-slider-runnable-track {
   background: linear-gradient(
     90deg,
-    --okhst(var(--seed-h), 0, 58),
-    --okhst(var(--seed-h), 1, 58)
+    --ghst(var(--seed-h), 0, 58),
+    --ghst(var(--seed-h), 1, 58)
   );
   border-color: transparent;
 }
@@ -283,13 +300,13 @@ input[type="range"]::-webkit-slider-thumb {
 .range-dual::before {
   left: 0;
   right: 0;
-  background-color: var(--c-track);
-  border: 1px solid var(--c-border);
+  background-color: --ghst(var(--seed-h), 0.04, 88);
+  border: 1px solid --ghst(var(--seed-h), 0.04, 86);
 }
 .range-dual::after {
   left: calc(var(--lo) * 1%);
   width: calc((var(--hi) - var(--lo)) * 1%);
-  background-color: var(--c-accent);
+  background-color: --ghst(var(--seed-h), var(--seed-s), 58);
   border-color: transparent;
 }
 .range-dual input[type="range"] {
@@ -313,9 +330,15 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: var(--c-thumb);
-  border: 2px solid var(--c-accent);
+  background-color: --ghst(var(--seed-h), 0.02, 100);
+  border: 2px solid --ghst(var(--seed-h), var(--seed-s), 58);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.range-dual--locked {
+  opacity: 0.55;
+}
+.range-dual--locked input[type="range"] {
+  cursor: not-allowed;
 }
 
 /* ---- ramp + swatches ----------------------------------------------------- */
@@ -332,7 +355,6 @@ input[type="range"]::-webkit-slider-thumb {
   --t: calc(var(--i) / (var(--count) - 1) * 100);     /* exact fractional -> color */
   --t-label: calc(var(--i) / (var(--count) - 1) * 100); /* <integer> reg -> rounded */
   --show: clamp(0, var(--count) - var(--i), 1);       /* 1 visible, 0 hidden */
-  --swatch-bg: --ghst(var(--seed-h), var(--seed-s), var(--t)); /* <color>: resolved once per swatch */
 
   flex: var(--show) 1 0;
   min-width: 0;
@@ -347,7 +369,7 @@ input[type="range"]::-webkit-slider-thumb {
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 8px;
-  background-color: var(--swatch-bg);
+  background-color: --ghst(var(--seed-h), var(--seed-s), var(--t));
   color: --ghst(var(--seed-h), calc(var(--seed-s) * 0.4), calc(100 - var(--t))); /* fallback for <147 */
   font: 600 12px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
@@ -357,7 +379,9 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: var(--radius) 0 0 var(--radius);
 }
 @supports (color: contrast-color(red)) {
-  .swatch { color: contrast-color(var(--swatch-bg)); }
+  .swatch {
+    color: contrast-color(--ghst(var(--seed-h), var(--seed-s), var(--t)));
+  }
 }
 .swatch:hover { filter: brightness(1.06); }
 .swatch::before { content: counter(t); }
@@ -366,7 +390,9 @@ input[type="range"]::-webkit-slider-thumb {
   outline-offset: -2px;
 }
 @supports (color: contrast-color(red)) {
-  .swatch[aria-pressed="true"] { outline-color: contrast-color(var(--swatch-bg)); }
+  .swatch[aria-pressed="true"] {
+    outline-color: contrast-color(--ghst(var(--seed-h), var(--seed-s), var(--t)));
+  }
 }
 
 /* ---- inspector ----------------------------------------------------------- */
@@ -460,5 +486,16 @@ code {
 /* ---- responsive ---------------------------------------------------------- */
 @media (max-width: 620px) {
   .controls { grid-template-columns: 1fr; }
-  .topbar { justify-content: center; }
+  .topbar {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .topbar h1 {
+    justify-content: center;
+  }
+  .toggles {
+    justify-content: center;
+  }
 }

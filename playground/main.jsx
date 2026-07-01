@@ -8,14 +8,30 @@
    compute the color ourselves.
    ============================================================================ */
 
+import { createRoot } from 'react-dom/client';
+import {
+  loadContrastPref,
+  loadSchemePref,
+  resolveContrast,
+  resolveScheme,
+  saveContrastPref,
+  saveSchemePref,
+  watchSystemPrefs,
+} from './preferences.js';
+import { Toggles } from './toggles.jsx';
+
 const MAX_SWATCHES = 32;
-const MIN_WINDOW_GAP = 5;
+const MIN_WINDOW_GAP = 50;
+const HC_WINDOW = { lo: 0, hi: 100 };
 
 const state = {
   hue: 250,
   sat: 70,
   steps: 11,
-  scheme: 'light', // 'light' | 'dark'
+  schemePref: loadSchemePref(),
+  contrastPref: loadContrastPref(),
+  scheme: 'light',
+  contrast: 'normal',
   space: 'okhst', // 'okhst' | 'okhsl'
   win: {
     light: { lo: 10, hi: 100 },
@@ -43,7 +59,8 @@ const inspTone = $('insp-tone');
 const inspSpace = $('insp-space');
 const inspValue = $('insp-value');
 const segSpace = Array.from(document.querySelectorAll('#seg-space button'));
-const segScheme = Array.from(document.querySelectorAll('#seg-scheme button'));
+
+let renderToggles = () => {};
 
 const setVar = (name, value) => root.style.setProperty(name, value);
 
@@ -138,8 +155,27 @@ function applySteps() {
   clearSelection();
 }
 
-function applyWindow() {
-  const w = state.win[state.scheme];
+function clampWindow(win) {
+  let { lo, hi } = win;
+  if (hi - lo < MIN_WINDOW_GAP) {
+    hi = Math.min(100, lo + MIN_WINDOW_GAP);
+    if (hi - lo < MIN_WINDOW_GAP) {
+      lo = Math.max(0, hi - MIN_WINDOW_GAP);
+    }
+  }
+  return { lo, hi };
+}
+
+function activeWindow() {
+  const raw =
+    state.contrast === 'high' ? HC_WINDOW : state.win[state.scheme];
+  return state.contrast === 'high' ? raw : clampWindow(raw);
+}
+
+function syncWindowControls() {
+  const highContrast = state.contrast === 'high';
+  const w = activeWindow();
+
   setVar('--tone-lo', String(w.lo));
   setVar('--tone-hi', String(w.hi));
   winEl.style.setProperty('--lo', String(w.lo));
@@ -147,17 +183,37 @@ function applyWindow() {
   winLo.value = String(w.lo);
   winHi.value = String(w.hi);
   winVal.textContent = `${w.lo} – ${w.hi}`;
+  winLo.disabled = highContrast;
+  winHi.disabled = highContrast;
+  winEl.classList.toggle('range-dual--locked', highContrast);
+}
+
+function applyWindow() {
+  syncWindowControls();
   clearSelection();
 }
 
-/* ---- scheme + space toggles ----------------------------------------------- */
-function setScheme(scheme) {
-  state.scheme = scheme;
-  root.classList.toggle('dark', scheme === 'dark');
-  for (const b of segScheme) {
-    b.setAttribute('aria-pressed', b.dataset.scheme === scheme ? 'true' : 'false');
-  }
-  applyWindow(); // swap the dual-thumb slider to this scheme's stored lo/hi
+/* ---- scheme + contrast + space toggles ------------------------------------ */
+function applyResolvedPrefs() {
+  state.scheme = resolveScheme(state.schemePref);
+  state.contrast = resolveContrast(state.contrastPref);
+}
+
+function setSchemePref(pref) {
+  state.schemePref = pref;
+  saveSchemePref(pref);
+  applyResolvedPrefs();
+  root.classList.toggle('dark', state.scheme === 'dark');
+  applyWindow();
+  renderToggles();
+}
+
+function setContrastPref(pref) {
+  state.contrastPref = pref;
+  saveContrastPref(pref);
+  applyResolvedPrefs();
+  applyWindow();
+  renderToggles();
 }
 
 function setSpace(space) {
@@ -172,6 +228,7 @@ function setSpace(space) {
 
 /* ---- dual-thumb lo/hi (single track, per-scheme values) ------------------- */
 function onWinLo() {
+  if (state.contrast === 'high') return;
   let lo = Number(winLo.value);
   const hi = Number(winHi.value);
   if (hi - lo < MIN_WINDOW_GAP) {
@@ -180,10 +237,12 @@ function onWinLo() {
     winLo.value = String(lo);
   }
   state.win[state.scheme].lo = lo;
+  state.win[state.scheme] = clampWindow(state.win[state.scheme]);
   applyWindow();
 }
 
 function onWinHi() {
+  if (state.contrast === 'high') return;
   const lo = Number(winLo.value);
   let hi = Number(winHi.value);
   if (hi - lo < MIN_WINDOW_GAP) {
@@ -192,12 +251,30 @@ function onWinHi() {
     winHi.value = String(hi);
   }
   state.win[state.scheme].hi = hi;
+  state.win[state.scheme] = clampWindow(state.win[state.scheme]);
   applyWindow();
+}
+
+function mountToggles() {
+  const togglesRoot = $('toggles-root');
+  const reactRoot = createRoot(togglesRoot);
+  renderToggles = () => {
+    reactRoot.render(
+      <Toggles
+        scheme={state.schemePref}
+        contrast={state.contrastPref}
+        onSchemeChange={setSchemePref}
+        onContrastChange={setContrastPref}
+      />,
+    );
+  };
+  renderToggles();
 }
 
 /* ---- init ----------------------------------------------------------------- */
 function init() {
   buildPool();
+  mountToggles();
 
   hueEl.addEventListener('input', applyHue);
   satEl.addEventListener('input', applySat);
@@ -208,17 +285,28 @@ function init() {
   for (const b of segSpace) {
     b.addEventListener('click', () => setSpace(b.dataset.space));
   }
-  for (const b of segScheme) {
-    b.addEventListener('click', () => setScheme(b.dataset.scheme));
-  }
+
+  watchSystemPrefs(() => {
+    const prevScheme = state.scheme;
+    const prevContrast = state.contrast;
+    applyResolvedPrefs();
+    if (state.scheme !== prevScheme) {
+      root.classList.toggle('dark', state.scheme === 'dark');
+    }
+    if (state.scheme !== prevScheme || state.contrast !== prevContrast) {
+      applyWindow();
+      renderToggles();
+    }
+  });
 
   // seed initial CSS state
   applyHue();
   applySat();
   applySteps();
+  applyResolvedPrefs();
+  root.classList.toggle('dark', state.scheme === 'dark');
   applyWindow();
   setSpace(state.space);
-  setScheme(state.scheme);
 }
 
 init();
