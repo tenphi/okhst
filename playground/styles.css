@@ -61,7 +61,7 @@
 
 :root {
   --seed-h: 250;
-  --seed-s: 0.7;
+  --seed-s: 70;
 
   /* scheme window + inversion (OKHST dark = 100 - tone) */
   --tone-lo: 10;
@@ -69,13 +69,13 @@
   --tone-flip: 0;
 
   /* chrome color tokens (--ghst respects the live tone window) */
-  --c-surface: --ghst(var(--seed-h), 0.04, 100);
-  --c-elev:    --ghst(var(--seed-h), 0.05, 96);
-  --c-border:  --ghst(var(--seed-h), 0.04, 86);
-  --c-track:   --ghst(var(--seed-h), 0.04, 88);
-  --c-text:    --ghst(var(--seed-h), 0.02, 6);
-  --c-muted:   --ghst(var(--seed-h), 0.02, 38);
-  --c-thumb:   --ghst(var(--seed-h), 0.02, 100);
+  --c-surface: --ghst(var(--seed-h), 4, 100);
+  --c-elev:    --ghst(var(--seed-h), 5, 96);
+  --c-border:  --ghst(var(--seed-h), 4, 86);
+  --c-track:   --ghst(var(--seed-h), 4, 88);
+  --c-text:    --ghst(var(--seed-h), 2, 6);
+  --c-muted:   --ghst(var(--seed-h), 2, 38);
+  --c-thumb:   --ghst(var(--seed-h), 2, 100);
   --c-accent:  --ghst(var(--seed-h), var(--seed-s), 58);
 
   --radius: 14px;
@@ -246,8 +246,8 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 6px;
-  border: 1px solid --ghst(var(--seed-h), 0.04, 86);
-  background-color: --ghst(var(--seed-h), 0.04, 88);
+  border: 1px solid --ghst(var(--seed-h), 4, 86);
+  background-color: --ghst(var(--seed-h), 4, 88);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -256,7 +256,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: --ghst(var(--seed-h), 0.02, 100);
+  background-color: --ghst(var(--seed-h), 2, 100);
   border: 2px solid --ghst(var(--seed-h), var(--seed-s), 58);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
@@ -264,9 +264,9 @@ input[type="range"]::-webkit-slider-thumb {
 .slider-hue::-webkit-slider-runnable-track {
   background: linear-gradient(
     90deg,
-    --ghst(0, 1, 58), --ghst(60, 1, 58), --ghst(120, 1, 58),
-    --ghst(180, 1, 58), --ghst(240, 1, 58), --ghst(300, 1, 58),
-    --ghst(360, 1, 58)
+    --ghst(0, 100, 58), --ghst(60, 100, 58), --ghst(120, 100, 58),
+    --ghst(180, 100, 58), --ghst(240, 100, 58), --ghst(300, 100, 58),
+    --ghst(360, 100, 58)
   );
   border-color: transparent;
 }
@@ -275,7 +275,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: linear-gradient(
     90deg,
     --ghst(var(--seed-h), 0, 58),
-    --ghst(var(--seed-h), 1, 58)
+    --ghst(var(--seed-h), 100, 58)
   );
   border-color: transparent;
 }
@@ -300,8 +300,8 @@ input[type="range"]::-webkit-slider-thumb {
 .range-dual::before {
   left: 0;
   right: 0;
-  background-color: --ghst(var(--seed-h), 0.04, 88);
-  border: 1px solid --ghst(var(--seed-h), 0.04, 86);
+  background-color: --ghst(var(--seed-h), 4, 88);
+  border: 1px solid --ghst(var(--seed-h), 4, 86);
 }
 .range-dual::after {
   left: calc(var(--lo) * 1%);
@@ -330,7 +330,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background-color: --ghst(var(--seed-h), 0.02, 100);
+  background-color: --ghst(var(--seed-h), 2, 100);
   border: 2px solid --ghst(var(--seed-h), var(--seed-s), 58);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }

@@ -7,7 +7,7 @@
    OKHSL functions, so saturation matches OKHSL and any hue works.
 
      hue        degrees (any value, fractional ok)
-     saturation 0..1   (OKHSL gamut-normalized saturation)
+     saturation 0..100 (OKHSL gamut-normalized saturation, percent form)
      tone       0..100 (contrast-uniform; +N tone = +N everywhere)
 
    Approximation: C_max uses the cusp triangle (swap --cmax in --okhst-c for one
@@ -55,10 +55,11 @@
   --cc: calc(var(--lc) * var(--scusp));
   --sm: --okhst-smid(var(--a), var(--b));
   --tm: --okhst-tmid(var(--a), var(--b));
+  --s-norm: calc(var(--s) / 100);                         /* 0..100 authoring -> 0..1 OKHSL */
   --L-tone: --okhst-l(var(--t));                          /* OKHST: tone transfer */
   --L-lin:  --okhsl-toe-inv(calc(var(--t) / 100));        /* OKHSL: toe_inv(l)    */
   --L: calc((1 - var(--okhst-space)) * var(--L-tone) + var(--okhst-space) * var(--L-lin));
-  --C: --okhst-c(var(--s), var(--L), var(--lc), var(--cc), var(--sm), var(--tm));
+  --C: --okhst-c(var(--s-norm), var(--L), var(--lc), var(--cc), var(--sm), var(--tm));
   result: oklch(var(--L) var(--C) var(--h));
 }
 

@@ -143,7 +143,7 @@ function applyHue() {
 
 function applySat() {
   state.sat = Number(satEl.value);
-  setVar('--seed-s', (state.sat / 100).toString());
+  setVar('--seed-s', String(state.sat));
   satVal.textContent = `${state.sat}%`;
   clearSelection();
 }
